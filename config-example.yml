@@ -1,2 +1,11 @@
 name: judge-00
+reporter: http://negotiator:7165
 problems: /path/to/problem/definitions
+
+server:
+  applicationConnectors:
+  - type: http
+    port: 7167
+  adminConnectors:
+  - type: http
+    port: 7177

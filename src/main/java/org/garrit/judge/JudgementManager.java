@@ -2,6 +2,7 @@ package org.garrit.judge;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -9,6 +10,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.impl.client.HttpClients;
 import org.garrit.common.Problem;
 import org.garrit.common.ProblemCase;
 import org.garrit.common.Problems;
@@ -17,6 +23,9 @@ import org.garrit.common.messages.Judgement;
 import org.garrit.common.messages.JudgementCase;
 import org.garrit.common.messages.RegisteredSubmission;
 import org.garrit.common.messages.statuses.JudgeStatus;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Handle judgement of executions.
@@ -44,11 +53,11 @@ public class JudgementManager implements JudgeStatus, Closeable
      */
     LinkedBlockingQueue<Judgement> outgoingQueue = new LinkedBlockingQueue<>();
 
-    public JudgementManager(Path problems)
+    public JudgementManager(Path problems, URI negotiator)
     {
         this.problems = problems;
         this.judgementThread = new JudgementThread();
-        this.reportThread = new ReportThread();
+        this.reportThread = new ReportThread(negotiator);
     }
 
     /**
@@ -169,17 +178,24 @@ public class JudgementManager implements JudgeStatus, Closeable
     }
 
     /**
-     * Thread to report back to the mediator.
+     * Thread to report back to the negotiator.
      *
      * @author Samuel Coleman <samuel@seenet.ca>
      * @since 1.0.0
      */
     private class ReportThread extends Thread
     {
+        private final URI negotiator;
+
+        public ReportThread(URI negotiator)
+        {
+            this.negotiator = negotiator;
+        }
+
         @Override
         public void run()
         {
-            log.info("Starting mediator reporting thread");
+            log.info("Starting negotiator reporting thread");
 
             try
             {
@@ -189,7 +205,35 @@ public class JudgementManager implements JudgeStatus, Closeable
                         break;
 
                     Judgement judgement = JudgementManager.this.outgoingQueue.take();
-                    log.info("Asked to push {} out to the mediator", judgement);
+
+                    ObjectMapper mapper = new ObjectMapper();
+
+                    HttpClient client;
+                    HttpPost post;
+                    HttpEntity body;
+
+                    client = HttpClients.createDefault();
+                    post = new HttpPost(this.negotiator.resolve("judge/" + judgement.getId()));
+                    try
+                    {
+                        body = new ByteArrayEntity(mapper.writeValueAsBytes(judgement));
+                    }
+                    catch (JsonProcessingException e)
+                    {
+                        log.error("Failed to encode outgoing execution object to JSON", e);
+                        continue;
+                    }
+                    post.setEntity(body);
+
+                    try
+                    {
+                        client.execute(post);
+                    }
+                    catch (IOException e)
+                    {
+                        log.error("Failed to call negotiator with outgoing execution object", e);
+                        continue;
+                    }
                 }
             }
             catch (InterruptedException e)
@@ -197,7 +241,7 @@ public class JudgementManager implements JudgeStatus, Closeable
                 /* If we've been interrupted, just finish execution. */
             }
 
-            log.info("Finishing mediator reporting thread");
+            log.info("Finishing negotiator reporting thread");
         }
     }
 }

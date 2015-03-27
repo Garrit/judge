@@ -30,7 +30,7 @@ public class JudgeApplication extends Application<JudgeConfiguration>
     @Override
     public void run(JudgeConfiguration config, Environment env) throws Exception
     {
-        this.judge = new JudgementManager(config.getProblems());
+        this.judge = new JudgementManager(config.getProblems(), config.getNegotiator());
 
         this.status = new Status(config.getName());
         this.status.setCapabilityStatus(this.judge);
