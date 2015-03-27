@@ -37,20 +37,20 @@ public class LineJudge extends Judge
     {
         ExecutionCase executionCase = this.executionCases.get(problemCase.getName());
 
-        JudgementCase judgementCase = new JudgementCase();
-        judgementCase.setName(problemCase.getName());
-        judgementCase.setValueMin(0);
-        judgementCase.setValueMax(1);
-
         if (executionCase == null)
         {
+            JudgementCase judgementCase = new JudgementCase();
+            judgementCase.setName(problemCase.getName());
             judgementCase.setErrorOccurred(true);
             judgementCase.setError("No execution for case");
             judgementCase.setValue(0);
             return judgementCase;
         }
 
+        JudgementCase judgementCase = new JudgementCase(executionCase);
         judgementCase.setValue(1);
+        judgementCase.setValueMin(0);
+        judgementCase.setValueMax(1);
 
         try (
                 Scanner problemScanner = new Scanner(new String(problemCase.getOutput()));
