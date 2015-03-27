@@ -223,6 +223,8 @@ public class JudgementManager implements JudgeStatus, Closeable
                         log.error("Failed to encode outgoing execution object to JSON", e);
                         continue;
                     }
+
+                    post.setHeader("Content-Type", "application/json");
                     post.setEntity(body);
 
                     try
