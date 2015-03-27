@@ -36,8 +36,10 @@ public class JudgeApplication extends Application<JudgeConfiguration>
         this.status.setCapabilityStatus(this.judge);
 
         final StatusResource statusResource = new StatusResource(this.status);
+        final JudgeResource judgeResource = new JudgeResource(this.judge);
 
         env.jersey().register(statusResource);
+        env.jersey().register(judgeResource);
 
         final StatusHealthCheck statusHealthCheck = new StatusHealthCheck(status);
 

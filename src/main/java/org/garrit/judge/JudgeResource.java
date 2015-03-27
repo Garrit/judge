@@ -8,6 +8,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import lombok.RequiredArgsConstructor;
+
 import org.garrit.common.messages.Execution;
 
 /**
@@ -16,20 +18,16 @@ import org.garrit.common.messages.Execution;
  * @author Samuel Coleman <samuel@seenet.ca>
  * @since 1.0.0
  */
-@Path("/execute")
+@RequiredArgsConstructor
+@Path("/judge")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class JudgeResource
 {
     private final JudgementManager manager;
 
-    public JudgeResource(JudgementManager manager)
-    {
-        this.manager = manager;
-    }
-
     @POST
-    public Response executeSubmission(Execution execution)
+    public Response judgeSubmission(Execution execution)
     {
         this.manager.enqueue(execution);
 
