@@ -213,7 +213,7 @@ public class JudgementManager implements JudgeStatus, Closeable
                     HttpEntity body;
 
                     client = HttpClients.createDefault();
-                    post = new HttpPost(this.negotiator.resolve("/report/" + judgement.getId()));
+                    post = new HttpPost(this.negotiator.resolve("report/" + judgement.getId()));
                     try
                     {
                         body = new ByteArrayEntity(mapper.writeValueAsBytes(judgement));
