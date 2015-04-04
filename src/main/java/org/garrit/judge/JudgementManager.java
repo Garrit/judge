@@ -18,10 +18,13 @@ import org.apache.http.impl.client.HttpClients;
 import org.garrit.common.Problem;
 import org.garrit.common.ProblemCase;
 import org.garrit.common.Problems;
+import org.garrit.common.messages.ErrorSubmission;
+import org.garrit.common.messages.ErrorType;
 import org.garrit.common.messages.Execution;
 import org.garrit.common.messages.Judgement;
 import org.garrit.common.messages.JudgementCase;
 import org.garrit.common.messages.RegisteredSubmission;
+import org.garrit.common.messages.statuses.CapabilityType;
 import org.garrit.common.messages.statuses.JudgeStatus;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -42,6 +45,7 @@ public class JudgementManager implements JudgeStatus, Closeable
     private final Path problems;
     private final JudgementThread judgementThread;
     private final ReportThread reportThread;
+    private final ErrorThread errorThread;
 
     /**
      * Executions lined up and waiting to be judged.
@@ -52,12 +56,17 @@ public class JudgementManager implements JudgeStatus, Closeable
      * mediator.
      */
     LinkedBlockingQueue<Judgement> outgoingQueue = new LinkedBlockingQueue<>();
+    /**
+     * Errors in execution which need to be indicated to the negotiator.
+     */
+    LinkedBlockingQueue<ErrorSubmission<Execution>> errorQueue = new LinkedBlockingQueue<>();
 
     public JudgementManager(Path problems, URI negotiator)
     {
         this.problems = problems;
         this.judgementThread = new JudgementThread();
         this.reportThread = new ReportThread(negotiator);
+        this.errorThread = new ErrorThread(negotiator);
     }
 
     /**
@@ -109,6 +118,7 @@ public class JudgementManager implements JudgeStatus, Closeable
         log.info("Starting judgement manager");
         this.judgementThread.start();
         this.reportThread.start();
+        this.errorThread.start();
     }
 
     @Override
@@ -117,6 +127,7 @@ public class JudgementManager implements JudgeStatus, Closeable
         log.info("Closing judgement manager");
         this.judgementThread.interrupt();
         this.reportThread.interrupt();
+        this.errorThread.interrupt();
     }
 
     /**
@@ -127,6 +138,11 @@ public class JudgementManager implements JudgeStatus, Closeable
      */
     private class JudgementThread extends Thread
     {
+        public JudgementThread()
+        {
+            super("Judgement thread");
+        }
+
         @Override
         public void run()
         {
@@ -144,6 +160,13 @@ public class JudgementManager implements JudgeStatus, Closeable
                     Problem problem;
                     Judge judge;
 
+                    /* We may not need to report an error, but here's one
+                     * half-constructed and ready to go in the event we do. */
+                    ErrorSubmission<Execution> error = new ErrorSubmission<>();
+                    error.setId(execution.getId());
+                    error.setStage(CapabilityType.JUDGE);
+                    error.setSubmission(execution);
+
                     try
                     {
                         problem = Problems.problemByName(JudgementManager.this.problems, execution.getProblem());
@@ -151,6 +174,11 @@ public class JudgementManager implements JudgeStatus, Closeable
                     catch (IOException e)
                     {
                         log.error("Failed to retrieve problem definition", e);
+
+                        error.setType(ErrorType.E_INTERNAL);
+                        error.setMessage("Failed to retrieve problem definition");
+                        JudgementManager.this.errorQueue.offer(error);
+
                         continue;
                     }
 
@@ -189,6 +217,7 @@ public class JudgementManager implements JudgeStatus, Closeable
 
         public ReportThread(URI negotiator)
         {
+            super("Negotiator reporting thread");
             this.negotiator = negotiator;
         }
 
@@ -244,6 +273,77 @@ public class JudgementManager implements JudgeStatus, Closeable
             }
 
             log.info("Finishing negotiator reporting thread");
+        }
+    }
+
+    /**
+     * Thread to send errors back to the negotiator.
+     *
+     * @author Samuel Coleman <samuel@seenet.ca>
+     * @since 1.0.0
+     */
+    private class ErrorThread extends Thread
+    {
+        private final URI negotiator;
+
+        public ErrorThread(URI negotiator)
+        {
+            super("Error reporting thread");
+            this.negotiator = negotiator;
+        }
+
+        @Override
+        public void run()
+        {
+            log.info("Starting error reporting thread");
+
+            try
+            {
+                while (true)
+                {
+                    if (Thread.interrupted())
+                        break;
+
+                    ErrorSubmission<Execution> error = JudgementManager.this.errorQueue.take();
+
+                    ObjectMapper mapper = new ObjectMapper();
+
+                    HttpClient client;
+                    HttpPost post;
+                    HttpEntity body;
+
+                    client = HttpClients.createDefault();
+                    post = new HttpPost(this.negotiator.resolve("error/" + error.getId()));
+                    try
+                    {
+                        body = new ByteArrayEntity(mapper.writeValueAsBytes(error));
+                    }
+                    catch (JsonProcessingException e)
+                    {
+                        log.error("Failed to encode outgoing error object to JSON", e);
+                        continue;
+                    }
+
+                    post.setHeader("Content-Type", "application/json");
+                    post.setEntity(body);
+
+                    try
+                    {
+                        client.execute(post);
+                    }
+                    catch (IOException e)
+                    {
+                        log.error("Failed to call negotiator with outgoing error object", e);
+                        continue;
+                    }
+                }
+            }
+            catch (InterruptedException e)
+            {
+                /* If we've been interrupted, just finish execution. */
+            }
+
+            log.info("Finishing error reporting thread");
         }
     }
 }
