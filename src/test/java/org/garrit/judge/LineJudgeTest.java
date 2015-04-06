@@ -2,6 +2,8 @@ package org.garrit.judge;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
+
 import org.garrit.common.ProblemCase;
 import org.garrit.common.messages.Execution;
 import org.garrit.common.messages.ExecutionCase;
@@ -17,7 +19,7 @@ import org.junit.Test;
 public class LineJudgeTest
 {
     @Test
-    public void testCorrectInput()
+    public void testCorrectInput() throws IOException
     {
         ExecutionCase executionCase = new ExecutionCase();
         executionCase.setName("correct");
@@ -37,7 +39,7 @@ public class LineJudgeTest
     }
 
     @Test
-    public void testIgnoresLineEndings()
+    public void testIgnoresLineEndings() throws IOException
     {
         ExecutionCase executionCase = new ExecutionCase();
         executionCase.setName("endings");
@@ -57,7 +59,7 @@ public class LineJudgeTest
     }
 
     @Test
-    public void testWrongInput()
+    public void testWrongInput() throws IOException
     {
         ExecutionCase executionCase = new ExecutionCase();
         executionCase.setName("wrong");
@@ -77,7 +79,7 @@ public class LineJudgeTest
     }
 
     @Test
-    public void testShortExecution()
+    public void testShortExecution() throws IOException
     {
         ExecutionCase executionCase = new ExecutionCase();
         executionCase.setName("short");
@@ -97,7 +99,7 @@ public class LineJudgeTest
     }
 
     @Test
-    public void testShortProblem()
+    public void testShortProblem() throws IOException
     {
         ExecutionCase executionCase = new ExecutionCase();
         executionCase.setName("short");
@@ -114,5 +116,23 @@ public class LineJudgeTest
         JudgementCase judgeCase = judge.evaluate(problemCase);
 
         assertEquals(0, judgeCase.getValue());
+    }
+
+    @Test(expected = IOException.class)
+    public void testFailsForMissingCase() throws IOException
+    {
+        ExecutionCase executionCase = new ExecutionCase();
+        executionCase.setName("one");
+        executionCase.setOutput("".getBytes());
+
+        Execution execution = new Execution();
+        execution.getCases().add(executionCase);
+
+        ProblemCase problemCase = new ProblemCase();
+        problemCase.setName("two");
+        problemCase.setOutput("".getBytes());
+
+        LineJudge judge = new LineJudge(execution);
+        judge.evaluate(problemCase);
     }
 }

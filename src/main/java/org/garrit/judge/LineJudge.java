@@ -1,5 +1,6 @@
 package org.garrit.judge;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Scanner;
 
@@ -33,19 +34,12 @@ public class LineJudge extends Judge
     }
 
     @Override
-    public JudgementCase evaluate(ProblemCase problemCase)
+    public JudgementCase evaluate(ProblemCase problemCase) throws IOException
     {
         ExecutionCase executionCase = this.executionCases.get(problemCase.getName());
 
         if (executionCase == null)
-        {
-            JudgementCase judgementCase = new JudgementCase();
-            judgementCase.setName(problemCase.getName());
-            judgementCase.setErrorOccurred(true);
-            judgementCase.setError("No execution for case");
-            judgementCase.setValue(0);
-            return judgementCase;
-        }
+            throw new IOException("No execution for case");
 
         JudgementCase judgementCase = new JudgementCase(executionCase);
         judgementCase.setValue(1);

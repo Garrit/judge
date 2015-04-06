@@ -187,7 +187,20 @@ public class JudgementManager implements JudgeStatus, Closeable
                     ArrayList<JudgementCase> judgementCases = new ArrayList<>();
                     for (ProblemCase problemCase : problem.getCases())
                     {
-                        judgementCases.add(judge.evaluate(problemCase));
+                        try
+                        {
+                            judgementCases.add(judge.evaluate(problemCase));
+                        }
+                        catch (IOException e)
+                        {
+                            log.error("Failure while judging case", e);
+
+                            error.setType(ErrorType.E_JUDGING);
+                            error.setMessage(e.getMessage());
+                            JudgementManager.this.errorQueue.offer(error);
+
+                            continue;
+                        }
                     }
 
                     Judgement judgement = new Judgement(execution);

@@ -1,5 +1,7 @@
 package org.garrit.judge;
 
+import java.io.IOException;
+
 import lombok.Getter;
 
 import org.garrit.common.ProblemCase;
@@ -35,6 +37,7 @@ public abstract class Judge
      * 
      * @param problemCase the problem case
      * @return the result of problem judgement
+     * @throws IOException if an error occurs while judging
      */
-    public abstract JudgementCase evaluate(ProblemCase problemCase);
+    public abstract JudgementCase evaluate(ProblemCase problemCase) throws IOException;
 }
