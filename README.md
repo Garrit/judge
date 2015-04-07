@@ -15,7 +15,7 @@ After checking out the repository, it can be built with
 mvn package
 ```
 
-This will generate an executable JAR, `./target/judge-1.0.0-SNAPSHOT.jar`.
+This will generate an executable JAR, `target/judge-1.0.0.jar`.
 
 Usage
 -----
@@ -40,5 +40,5 @@ respectively.
 Then, to launch the executor:
 
 ```
-java -jar /path/to/judge-1.0.0-SNAPSHOT.jar server /path/to/config.yml
+java -jar /path/to/judge-1.0.0.jar server /path/to/config.yml
 ```
